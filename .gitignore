@@ -1,0 +1,18 @@
+# 환경변수 - 절대 올리지 말 것
+.env
+
+# 데이터셋 - 용량 너무 큼
+data/
+
+# 모델 가중치
+results/
+
+# 히트맵 결과물
+results/heatmaps/
+results/metrics/
+
+# Python
+__pycache__/
+*.pyc
+*.pth
+.venv/

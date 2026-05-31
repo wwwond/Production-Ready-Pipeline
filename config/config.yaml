@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────
+#  PRP - Precision Realtime Pipeline
+#  제조 공정 이상 탐지 시스템 설정 파일
+# ─────────────────────────────────────────
+
+project:
+  name: "PRP"
+  version: "1.0.0"
+
+# 데이터 경로
+data:
+  root: "data/mvtec"
+  category: "bottle"          # 실험할 카테고리 (bottle, cable, carpet ...)
+  image_size: 256             # 리사이즈 크기
+  train_dir: "train/good"     # 정상 이미지만으로 학습
+  test_dir: "test"
+
+# 결과 저장 경로
+results:
+  heatmaps: "results/heatmaps"
+  metrics: "results/metrics"
+  checkpoints: "results/checkpoints"
+
+# 모델 공통 설정
+model:
+  current: "autoencoder"      # "autoencoder" or "patchcore"
+  threshold: 0.5              # anomaly score 임계값 (실험하면서 조정)
+
+# AutoEncoder 설정
+autoencoder:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  latent_dim: 512
+
+# PatchCore 설정
+patchcore:
+  backbone: "wide_resnet50_2"
+  layers: ["layer2", "layer3"]
+  coreset_ratio: 0.1          # memory bank 크기 비율
+
+# Kafka 설정
+kafka:
+  bootstrap_servers: "kafka:9092"
+  topic: "anomaly-detection"
+  group_id: "prp-consumer"
+
+# DB 설정
+database:
+  url: "postgresql://prp_user:prp_pass@postgres:5432/prp_db"
+
+# FastAPI 설정
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+
+# Slack 설정
+slack:
+  webhook_url: ""             # .env에서 주입
+  alert_threshold: 0.7        # 이 점수 이상이면 알림
