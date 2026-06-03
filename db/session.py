@@ -50,7 +50,7 @@ def _load_db_url() -> str:
     config.yaml에서 DB 연결 URL을 읽어옵니다.
     """
     config_path = Path("config/config.yaml")
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     return config["database"]["url"]
 
