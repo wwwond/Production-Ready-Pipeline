@@ -159,3 +159,10 @@ if __name__ == "__main__":
     print(f"정상 - 평균: {sum(good_scores)/len(good_scores):.6f} | 최대: {max(good_scores):.6f} | 최소: {min(good_scores):.6f}")
     print(f"이상 - 평균: {sum(bad_scores)/len(bad_scores):.6f} | 최대: {max(bad_scores):.6f} | 최소: {min(bad_scores):.6f}")
     print(f"{'='*50}")
+
+
+    threshold = config["model"]["threshold"]
+    detected = sum(1 for s in bad_scores if s >= threshold)
+    print(f"\nthreshold={threshold} 기준")
+    print(f"이상 탐지: {detected}/{len(bad_scores)}장 ({detected/len(bad_scores)*100:.1f}%)")
+    print(f"오탐(정상→이상): {sum(1 for s in good_scores if s >= threshold)}/{len(good_scores)}장")

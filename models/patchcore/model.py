@@ -45,6 +45,7 @@ from torchvision import models
 from torchvision.models import Wide_ResNet50_2_Weights
 import numpy as np
 from sklearn.random_projection import SparseRandomProjection
+from sklearn.neighbors import NearestNeighbors
 from loguru import logger
 
 
@@ -194,6 +195,12 @@ class PatchCore(nn.Module):
         self.memory_bank = self._coreset_sampling(all_features)
         logger.info(f"Memory Bank 구축 완료: {len(self.memory_bank)}개 (압축률={self.coreset_ratio})")
 
+        # NearestNeighbors 인덱스 구축 (추론 속도 대폭 향상)
+        logger.info("NearestNeighbors 인덱스 구축 중...")
+        self.nn_index = NearestNeighbors(n_neighbors=1, algorithm="ball_tree", n_jobs=-1)
+        self.nn_index.fit(self.memory_bank)
+        logger.info("인덱스 구축 완료")
+
     def _coreset_sampling(self, features: np.ndarray) -> np.ndarray:
         """
         Coreset Sampling으로 대표 특징만 선택합니다.
@@ -271,22 +278,39 @@ class PatchCore(nn.Module):
         Returns:
             각 패치의 최소 거리 (N,)
         """
-        # 배치 단위로 계산 (메모리 절약)
-        batch_size = 1000
-        all_distances = []
+        """
+        각 패치와 Memory Bank 사이의 최소 거리를 계산합니다.
+        NearestNeighbors 인덱스가 있으면 사용하고, 없으면 직접 계산합니다.
 
-        for i in range(0, len(patches), batch_size):
-            batch = patches[i:i + batch_size]
+        Args:
+            patches: 테스트 패치 특징 벡터 (N, C)
 
-            # (batch, 1, C) - (1, memory, C) → (batch, memory) 거리 행렬
-            diff = batch[:, np.newaxis, :] - self.memory_bank[np.newaxis, :, :]
-            dists = np.linalg.norm(diff, axis=2)  # L2 거리
+        Returns:
+            각 패치의 최소 거리 (N,)
+        """
+        if hasattr(self, "nn_index") and self.nn_index is not None:
+            # NearestNeighbors 인덱스 사용 (빠름)
+            distances, _ = self.nn_index.kneighbors(patches)
+            return distances.flatten()
 
-            # 각 패치의 최소 거리
-            min_dists = dists.min(axis=1)
-            all_distances.append(min_dists)
+        # 인덱스 없을 때 직접 계산 (느림, 폴백용)
+        patch_batch_size  = 50
+        memory_batch_size = 1000
+        all_min_distances = []
 
-        return np.concatenate(all_distances)
+        for i in range(0, len(patches), patch_batch_size):
+            patch_batch = patches[i:i + patch_batch_size]
+            min_dists   = np.full(len(patch_batch), np.inf)
+
+            for j in range(0, len(self.memory_bank), memory_batch_size):
+                mem_batch = self.memory_bank[j:j + memory_batch_size]
+                diff  = patch_batch[:, np.newaxis, :] - mem_batch[np.newaxis, :, :]
+                dists = np.linalg.norm(diff, axis=2)
+                min_dists = np.minimum(min_dists, dists.min(axis=1))
+
+            all_min_distances.append(min_dists)
+
+        return np.concatenate(all_min_distances)
 
     def save(self, path: str) -> None:
         """Memory Bank를 파일로 저장합니다."""
@@ -294,6 +318,12 @@ class PatchCore(nn.Module):
         logger.info(f"Memory Bank 저장: {path}")
 
     def load(self, path: str) -> None:
-        """저장된 Memory Bank를 로드합니다."""
+        """저장된 Memory Bank를 로드하고 NearestNeighbors 인덱스를 구축합니다."""
         self.memory_bank = np.load(path)
         logger.info(f"Memory Bank 로드: {path} ({len(self.memory_bank)}개)")
+
+        # 인덱스 구축 (추론 속도 향상)
+        logger.info("NearestNeighbors 인덱스 구축 중...")
+        self.nn_index = NearestNeighbors(n_neighbors=1, algorithm="ball_tree", n_jobs=-1)
+        self.nn_index.fit(self.memory_bank)
+        logger.info("인덱스 구축 완료")

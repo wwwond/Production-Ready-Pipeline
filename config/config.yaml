@@ -23,8 +23,8 @@ results:
 
 # 모델 공통 설정
 model:
-  current: "autoencoder"      # "autoencoder" or "patchcore"
-  threshold: 0.5              # anomaly score 임계값 (실험하면서 조정)
+  current: "patchcore"      # "autoencoder" or "patchcore"
+  threshold: 4.5              # anomaly score 임계값 (실험하면서 조정)
 
 # AutoEncoder 설정
 autoencoder:
