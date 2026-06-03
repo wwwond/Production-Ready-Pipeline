@@ -26,6 +26,9 @@ AutoEncoder를 학습시키는 파일입니다.
 """
 
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import sys
+sys.path.append("C:\\Users\\User\\pro\\prp")
 import yaml
 import torch
 import torch.nn as nn
@@ -35,7 +38,6 @@ from PIL import Image
 from pathlib import Path
 from loguru import logger
 from tqdm import tqdm
-
 from models.autoencoder.model import AutoEncoder
 
 
@@ -166,7 +168,7 @@ def train(config: dict):
 if __name__ == "__main__":
     # config.yaml 로드
     config_path = Path("config/config.yaml")
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     train(config)

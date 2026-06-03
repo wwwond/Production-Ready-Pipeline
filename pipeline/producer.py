@@ -149,7 +149,7 @@ def run_producer(config: dict) -> None:
 
 
 if __name__ == "__main__":
-    with open("config/config.yaml", "r") as f:
+    with open("config/config.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     run_producer(config)

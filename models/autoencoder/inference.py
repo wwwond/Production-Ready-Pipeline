@@ -25,7 +25,10 @@ Anomaly Score 기준
 ---------
   python models/autoencoder/inference.py
 """
-
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import sys
+sys.path.append("C:\\Users\\User\\pro\\prp")
 import yaml
 import torch
 import numpy as np
@@ -166,7 +169,7 @@ class AnomalyDetector:
 
 if __name__ == "__main__":
     # config.yaml 로드
-    with open("config/config.yaml", "r") as f:
+    with open("config/config.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     detector = AnomalyDetector(config)
