@@ -1,0 +1,122 @@
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: prp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - prp-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: prp-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9093"
+    networks:
+      - prp-network
+
+  postgres:
+    image: postgres:15
+    container_name: prp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - prp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: prp-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./config:/app/config
+    env_file:
+      - .env
+    networks:
+      - prp-network
+
+  consumer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.consumer
+    container_name: prp-consumer
+    depends_on:
+      - kafka
+      - postgres
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./config:/app/config
+    env_file:
+      - .env
+    networks:
+      - prp-network
+    restart: on-failure
+
+  producer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.producer
+    container_name: prp-producer
+    depends_on:
+      - kafka
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    env_file:
+      - .env
+    networks:
+      - prp-network
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: prp-grafana
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - prp-network
+
+volumes:
+  postgres-data:
+  grafana-data:
+
+networks:
+  prp-network:
+    driver: bridge
