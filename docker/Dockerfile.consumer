@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────
+# Dockerfile.consumer
+# ─────────────────────────────────────────
+# 역할
+# ----
+# Kafka Consumer + AutoEncoder 추론을 실행하는 컨테이너 이미지입니다.
+# Kafka에서 이미지 경로를 받아 추론하고 DB에 저장합니다.
+#
+# 주의
+# ----
+# PyTorch가 포함되어 이미지 크기가 큽니다. (~2GB)
+# GPU 사용 시 FROM python:3.11-slim 대신
+# FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime 으로 변경하세요.
+# ─────────────────────────────────────────
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# OpenCV 의존성
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "pipeline/consumer.py"]

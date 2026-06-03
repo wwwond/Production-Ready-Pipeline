@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────
+# Dockerfile.producer
+# ─────────────────────────────────────────
+# 역할
+# ----
+# Kafka Producer를 실행하는 컨테이너 이미지입니다.
+# MVTec 이미지 경로를 Kafka Topic에 전송합니다.
+#
+# 중요
+# ----
+# Producer 컨테이너와 Consumer 컨테이너가
+# 동일한 이미지 폴더를 바라봐야 경로가 의미있습니다.
+# docker-compose.yml에서 Volume 마운트로 해결합니다.
+#
+#   volumes:
+#     - ./data:/app/data   ← 호스트 data 폴더를 컨테이너 /app/data에 마운트
+# ─────────────────────────────────────────
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# kafka-python + 기타 의존성만 필요 (torch 불필요)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "pipeline/producer.py"]

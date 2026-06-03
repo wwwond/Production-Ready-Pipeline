@@ -1,0 +1,177 @@
+# ─────────────────────────────────────────
+# docker-compose.yml
+# ─────────────────────────────────────────
+# 역할
+# ----
+# PRP 전체 서비스를 한 번에 실행하는 Docker Compose 파일입니다.
+#
+# 컨테이너 구성
+# -------------
+# zookeeper  : Kafka 의존성 (Kafka 실행에 필수)
+# kafka      : 메시지 브로커
+# postgres   : 추론 결과 저장 DB
+# api        : FastAPI 서버 (포트 8000)
+# producer   : 이미지 경로 Kafka 전송
+# consumer   : 추론 + DB 저장 + Slack 알림
+# grafana    : 대시보드 (포트 3000)
+#
+# 시작 순서
+# ---------
+# zookeeper → kafka → postgres → api → consumer → producer
+# depends_on으로 의존성을 설정했지만
+# Kafka/DB가 완전히 준비되기 전에 다른 서비스가 시작될 수 있습니다.
+# 실제로는 consumer/producer에 재시도 로직이 필요합니다.
+#
+# 실행 방법
+# ---------
+#   docker compose up -d          # 전체 실행
+#   docker compose logs -f        # 전체 로그
+#   docker compose logs -f consumer  # consumer 로그만
+#   docker compose down           # 전체 종료
+#   docker compose down -v        # 종료 + 볼륨 삭제 (DB 초기화)
+# ─────────────────────────────────────────
+
+services:
+
+  # ── Zookeeper ──────────────────────────
+  # Kafka 클러스터 메타데이터 관리에 필요한 서비스
+  # Kafka 3.x 이상에서는 KRaft 모드로 Zookeeper 없이 실행 가능하지만
+  # 안정성을 위해 Zookeeper 방식 사용
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: prp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - prp-network
+
+  # ── Kafka ──────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: prp-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # 내부(컨테이너간): kafka:9092
+      # 외부(호스트): localhost:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # anomaly-detection 토픽 자동 생성
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9093"   # 호스트에서 Kafka 직접 접근할 때 사용 (디버깅용)
+    networks:
+      - prp-network
+
+  # ── PostgreSQL ─────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: prp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"   # 호스트에서 DB 직접 접근 (디버깅용)
+    volumes:
+      - postgres-data:/var/lib/postgresql/data   # DB 데이터 영구 저장
+    networks:
+      - prp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI ────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: prp-api
+    depends_on:
+      postgres:
+        condition: service_healthy   # PostgreSQL 준비 완료 후 시작
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data               # 이미지 폴더 공유
+      - ./results:/app/results         # 히트맵 결과 공유
+      - ./config:/app/config           # 설정 파일 공유
+    env_file:
+      - .env
+    networks:
+      - prp-network
+
+  # ── Kafka Consumer ─────────────────────
+  consumer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.consumer
+    container_name: prp-consumer
+    depends_on:
+      - kafka
+      - postgres
+    volumes:
+      - ./data:/app/data               # Producer와 동일한 이미지 폴더 마운트
+      - ./results:/app/results         # 히트맵 저장 위치 공유
+      - ./config:/app/config
+    env_file:
+      - .env
+    networks:
+      - prp-network
+    restart: on-failure   # 추론 실패 시 자동 재시작
+
+  # ── Kafka Producer ─────────────────────
+  producer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.producer
+    container_name: prp-producer
+    depends_on:
+      - kafka
+    volumes:
+      - ./data:/app/data               # Consumer와 동일한 이미지 폴더 마운트
+      - ./config:/app/config
+    env_file:
+      - .env
+    networks:
+      - prp-network
+
+  # ── Grafana ────────────────────────────
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: prp-grafana
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin   # 프로덕션에서는 변경 필요
+    volumes:
+      - grafana-data:/var/lib/grafana     # 대시보드 설정 영구 저장
+    networks:
+      - prp-network
+
+# ── 볼륨 ───────────────────────────────────────────────────────────────────────
+# Docker가 관리하는 영구 저장 볼륨
+# 컨테이너를 삭제해도 데이터가 유지됩니다.
+# docker compose down -v 실행 시 삭제됩니다.
+
+volumes:
+  postgres-data:
+  grafana-data:
+
+# ── 네트워크 ───────────────────────────────────────────────────────────────────
+# 컨테이너들이 서로 통신할 수 있는 내부 네트워크
+# 컨테이너명을 호스트명으로 사용 가능 (예: kafka:9092, postgres:5432)
+
+networks:
+  prp-network:
+    driver: bridge

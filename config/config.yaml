@@ -10,7 +10,7 @@ project:
 # 데이터 경로
 data:
   root: "data/mvtec"
-  category: "bottle"          # 실험할 카테고리 (bottle, cable, carpet ...)
+  category: "carpet"          # 실험할 카테고리 (bottle, cable, carpet ...)
   image_size: 256             # 리사이즈 크기
   train_dir: "train/good"     # 정상 이미지만으로 학습
   test_dir: "test"
@@ -23,14 +23,14 @@ results:
 
 # 모델 공통 설정
 model:
-  current: "autoencoder"      # "autoencoder" or "patchcore"
-  threshold: 0.5              # anomaly score 임계값 (실험하면서 조정)
+  current: "patchcore"      # "autoencoder" or "patchcore"
+  threshold: 4.5              # anomaly score 임계값 (실험하면서 조정)
 
 # AutoEncoder 설정
 autoencoder:
-  epochs: 100
+  epochs: 300
   batch_size: 32
-  learning_rate: 0.001
+  learning_rate: 0.0001
   latent_dim: 512
 
 # PatchCore 설정
