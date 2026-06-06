@@ -1,25 +1,11 @@
 """
-models/patchcore/inference.py
-==============================
-역할
-----
-구축된 Memory Bank로 이미지를 추론하는 파일입니다.
-AutoEncoder inference.py와 인터페이스를 동일하게 맞췄습니다.
-→ consumer.py에서 model_type만 바꾸면 바로 교체 가능
-
 AutoEncoder inference.py와 차이점
 ----------------------------------
 AutoEncoder : 복원 오차(MSE)로 score 계산
 PatchCore   : Memory Bank와의 최대 거리로 score 계산
 
-인터페이스는 동일:
-  detector = AnomalyDetector(config)
-  result   = detector.predict(image_path)
-  → { image_path, score, is_anomaly, heatmap_path }
+인터페이스 동일하게 설계
 
-실행 방법
----------
-  python models/patchcore/inference.py
 """
 
 import os
@@ -41,11 +27,6 @@ from models.patchcore.model import PatchCore
 
 
 class AnomalyDetector:
-    """
-    PatchCore 기반 이상 탐지기.
-    AutoEncoder의 AnomalyDetector와 동일한 인터페이스를 가집니다.
-    consumer.py에서 import 경로만 바꾸면 바로 교체 가능합니다.
-    """
 
     def __init__(self, config: dict):
         self.config     = config
@@ -63,14 +44,13 @@ class AnomalyDetector:
         logger.info(f"PatchCore AnomalyDetector 초기화 완료 | threshold={self.threshold}")
 
     def _load_model(self) -> PatchCore:
-        """저장된 Memory Bank를 로드합니다."""
         pc_cfg = self.config["patchcore"]
         memory_bank_path = Path(self.config["results"]["checkpoints"]) / "patchcore_memory_bank.npy"
 
         if not memory_bank_path.exists():
             raise FileNotFoundError(
                 f"Memory Bank가 없습니다: {memory_bank_path}\n"
-                "먼저 train.py를 실행해서 Memory Bank를 구축하세요."
+                "먼저 train.py를 실행"
             )
 
         model = PatchCore(
@@ -82,21 +62,6 @@ class AnomalyDetector:
         return model
 
     def predict(self, image_path: str) -> dict:
-        """
-        이미지 하나를 추론합니다.
-        AutoEncoder AnomalyDetector.predict()와 동일한 반환 형식입니다.
-
-        Args:
-            image_path: 추론할 이미지 경로
-
-        Returns:
-            {
-                image_path  : 입력 이미지 경로,
-                score       : Anomaly Score,
-                is_anomaly  : 이상 여부,
-                heatmap_path: 히트맵 저장 경로,
-            }
-        """
         image  = Image.open(image_path).convert("RGB")
         tensor = self.transform(image).unsqueeze(0)
 
@@ -119,7 +84,6 @@ class AnomalyDetector:
         return result
 
     def _save_heatmap(self, image_path: str, dist_map: np.ndarray) -> str:
-        """패치별 거리 맵을 히트맵으로 저장합니다."""
         # 정규화
         normalized = (dist_map - dist_map.min()) / (dist_map.max() - dist_map.min() + 1e-8)
         normalized = (normalized * 255).astype(np.uint8)
