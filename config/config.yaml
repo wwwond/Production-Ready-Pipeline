@@ -10,9 +10,9 @@ project:
 # 데이터 경로
 data:
   root: "data/mvtec"
-  category: "carpet"          # 실험할 카테고리 (bottle, cable, carpet ...)
+  category: "carpet"          # 실험할 카테고리
   image_size: 256             # 리사이즈 크기
-  train_dir: "train/good"     # 정상 이미지만으로 학습
+  train_dir: "train/good"     # 정상 이미지만
   test_dir: "test"
 
 # 결과 저장 경로
@@ -23,8 +23,8 @@ results:
 
 # 모델 공통 설정
 model:
-  current: "patchcore"      # "autoencoder" or "patchcore"
-  threshold: 4.5              # anomaly score 임계값 (실험하면서 조정)
+  current: "patchcore"      # "autoencoder" or "patchcore" 선택
+  threshold: 4.5              # anomaly score 임계값 
 
 # AutoEncoder 설정
 autoencoder:
@@ -58,4 +58,4 @@ api:
 # Slack 설정
 slack:
   webhook_url: ""             # .env에서 주입
-  alert_threshold: 0.7        # 이 점수 이상이면 알림
+  alert_threshold: 0.7        # 0.7 이상이면 알림 설정
