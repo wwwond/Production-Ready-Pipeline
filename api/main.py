@@ -1,3 +1,7 @@
+import sys 
+import os
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,7 +9,6 @@ from loguru import logger
 
 from db.session import create_tables
 from api.routers import anomaly
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
