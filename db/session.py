@@ -9,7 +9,7 @@ from loguru import logger
 
 def _load_db_url() -> str:
     config_path = Path("config/config.yaml")
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     return config["database"]["url"]
 

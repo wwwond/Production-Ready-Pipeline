@@ -98,21 +98,6 @@ services:
     networks:
       - prp-network
 
-  grafana:
-    image: grafana/grafana:10.0.0
-    container_name: prp-grafana
-    depends_on:
-      - postgres
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana-data:/var/lib/grafana
-    networks:
-      - prp-network
-
 volumes:
   postgres-data:
   grafana-data:

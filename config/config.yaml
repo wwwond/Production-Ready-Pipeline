@@ -5,7 +5,7 @@
 
 project:
   name: "PRP"
-  version: "1.0.0"
+  version: "1.1.0"
 
 # 데이터 경로
 data:
@@ -24,26 +24,30 @@ results:
 # 모델 공통 설정
 model:
   current: "patchcore"      # "autoencoder" or "patchcore" 선택
-  threshold: 4.5              # anomaly score 임계값 
+  threshold: null              # anomaly score 임계값 
 
 # AutoEncoder 설정
 autoencoder:
   epochs: 300
   batch_size: 32
   learning_rate: 0.0001
-  latent_dim: 512
+  latent_channels: 512      # 벡터가 아니라 채널 수
+  normalize: false          
+  score_reduction: "max"
 
 # PatchCore 설정
 patchcore:
   backbone: "wide_resnet50_2"
   layers: ["layer2", "layer3"]
-  coreset_ratio: 0.1          # memory bank 크기 비율
+  coreset_ratio: 0.01          # memory bank 크기 비율
+  neighborhood_size: 3
 
 # Kafka 설정
 kafka:
   bootstrap_servers: "kafka:9092"
   topic: "anomaly-detection"
   group_id: "prp-consumer"
+  dlq_topic: "anomaly-detection-dlq" 
 
 # DB 설정
 database:
@@ -54,8 +58,3 @@ api:
   host: "0.0.0.0"
   port: 8000
   reload: true
-
-# Slack 설정
-slack:
-  webhook_url: ""             # .env에서 주입
-  alert_threshold: 0.7        # 0.7 이상이면 알림 설정

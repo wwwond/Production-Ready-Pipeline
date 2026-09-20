@@ -8,7 +8,7 @@ class AnomalyResultResponse(BaseModel):
     image_path    : str
     model_type    : str
     anomaly_score : float
-    is_anomaly    : bool
+    is_anomaly    : Optional[bool]
     heatmap_path  : Optional[str] = None
     created_at    : datetime
 
