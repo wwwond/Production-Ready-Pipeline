@@ -6,10 +6,12 @@ data/
 
 # 모델 가중치
 results/
+!results/metrics/
+!results/metrics/*.json
 
 # 히트맵 결과물
+results/checkpoints/
 results/heatmaps/
-results/metrics/
 
 # Python
 __pycache__/
